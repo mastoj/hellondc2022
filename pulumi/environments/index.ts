@@ -1,45 +1,46 @@
 import * as pulumi from "@pulumi/pulumi";
 import * as resources from "@pulumi/azure-native/resources";
-import * as storage from "@pulumi/azure-native/storage";
 import { ComponentResource, Output, ProviderResource } from "@pulumi/pulumi";
 import { Application, ServicePrincipal, ServicePrincipalPassword } from "@pulumi/azuread";
-import { Provider } from "@pulumi/azure-native";
+import { Provider as AzureProvider } from "@pulumi/azure-native";
+import { Provider as AzureAdProvider } from "@pulumi/azuread";
 import { RandomUuid } from "@pulumi/random";
 import { RoleAssignment } from "@pulumi/azure-native/authorization";
 
 type ResourceGroupWithSPArgs = {
     subscriptionId: string;
+    location: string;
 }
 
 class ResourceGroupWithSP extends ComponentResource {
     resourceGroupName: Output<string>;
     clientId: Output<string>;
     clientSecret: Output<string>;
-    subscriptionId: Output<string>;
-    tenantId: Output<string>;
 
     constructor(name: string, args: ResourceGroupWithSPArgs, opts?: pulumi.ComponentResourceOptions) {
-        super("2mas:ResourceGroupWithSP", name);
-        const options = { ...opts,  parent: this };
+        super(`2mas:ResourceGroupWithSP:${name}`, name);
+        const azureOptions = { provider: (opts?.providers as Record<string, ProviderResource>)["azure-native"],  parent: this };
+        const azureAdOptions = { provider: (opts?.providers as Record<string, ProviderResource>)["azuread"],  parent: this };
         const resourceGroup = new resources.ResourceGroup("resourceGroup", {
-            resourceGroupName: name
-        }, options);
+            resourceGroupName: name,
+            location: args.location,
+        }, azureOptions);
         const adApp = new Application(
             `${name}-app`,
             { displayName: `${name}-app` },
-            options,
+            azureAdOptions,
         );
         const adSp = new ServicePrincipal(
             `${name}-sp`,
             { applicationId: adApp.applicationId },
-            options,
+            azureAdOptions,
         );
         const adSpPassword = new ServicePrincipalPassword(
             `${name}-sp-password`,
             {
                 servicePrincipalId: adSp.id,
             },
-            options,
+            azureAdOptions,
         );
         
         const subscriptionId = args.subscriptionId;
@@ -51,7 +52,7 @@ class ResourceGroupWithSP extends ComponentResource {
         const spRoleAssignmentId = new RandomUuid(
             `${name}-spRoleAssignmentId`,
             undefined,
-            options,
+            { parent: this },
         );
         const spRoleAssignment = new RoleAssignment(
             `${name}-spRoleAssignment`,
@@ -62,35 +63,30 @@ class ResourceGroupWithSP extends ComponentResource {
                 roleDefinitionId: contributorRoleDefinitionId,
                 scope: resourceGroupNameUrn,
             },
-            { ...options, dependsOn: [adSp] },
+            { ...azureOptions, dependsOn: [adSp] },
         );
         this.resourceGroupName = resourceGroup.name;
-
+        this.clientId = adSp.applicationId;
+        this.clientSecret = pulumi.secret(adSpPassword.value);
     }
 }
 
-// Create an Azure Resource Group
+const resourceGroupNames = ["hello-ndc", "team2"];
+const azureConfig = new pulumi.Config("azure-native");
+const tenantId = azureConfig.require("tenantId");
+const subscriptionId = azureConfig.require("subscriptionId");
+const location = azureConfig.require("location");
+const azureProvider = new AzureProvider("azure-provider");
+const azureAdProvider = new AzureAdProvider("azure-ad-provider");
 
-// export const result = resourceGroup.name.apply(name => ({[name]: name}))
-
-
-// export {
-//     ...result
-// }
-
-// // Create an Azure resource (Storage Account)
-// const storageAccount = new storage.StorageAccount("sa", {
-//     resourceGroupName: resourceGroup.name,
-//     sku: {
-//         name: storage.SkuName.Standard_LRS,
-//     },
-//     kind: storage.Kind.StorageV2,
-// });
-
-// // Export the primary key of the Storage Account
-// const storageAccountKeys = storage.listStorageAccountKeysOutput({
-//     resourceGroupName: resourceGroup.name,
-//     accountName: storageAccount.name
-// });
-
-// export const primaryStorageKey = storageAccountKeys.keys[0].value;
+export const resourceGroups = resourceGroupNames.map((name) => {
+    const rg = new ResourceGroupWithSP(name, 
+        { subscriptionId: subscriptionId, location: location },
+        { providers: { "azure-native": azureProvider, azuread: azureAdProvider } });
+    return {
+        name: name,
+        clientId: rg.clientId,
+        clientSecret: rg.clientSecret,
+        subscriptionId: subscriptionId,
+        tenantId: tenantId
+    }}).reduce((acc, cur) => ({...acc, [cur.name]: cur}), {});
