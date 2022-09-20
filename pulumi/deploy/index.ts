@@ -1,8 +1,7 @@
-import * as pulumi from "@pulumi/pulumi";
-import * as resources from "@pulumi/azure-native/resources";
-import * as storage from "@pulumi/azure-native/storage";
-import { StackReference } from "@pulumi/pulumi";
+import { Config, getStack, Output, StackReference } from "@pulumi/pulumi";
 import { Provider } from "@pulumi/azure-native";
+import { Website } from "./Website";
+import { RecordTypes, Provider as DNSimpleProvider } from "@pulumi/dnsimple";
 
 interface Environment {
     name: string;
@@ -12,15 +11,21 @@ interface Environment {
     tenantId: string;
 }
 
+const stack = getStack();
+const name = "hello-ndc";
+const fullName = `${name}-${stack}`;
+const customHostname = `${fullName}.2mas.xyz`
+
+
 const getEnvironment = () => {
     const environmentStack = new StackReference("tomasja/environments/dev");
     const environment = environmentStack
         .requireOutput("resourceGroups")
-        .apply(json => json["hello-ndc"] as Environment);
+        .apply(json => json[name] as Environment);
     return environment;
 }
 
-const getAzureProvider = (environment: pulumi.Output<Environment>) => {
+const getAzureProvider = (environment: Output<Environment>) => {
     const azureProvider = new Provider("azure-provider", {
         subscriptionId: environment.subscriptionId,
         tenantId: environment.tenantId,
@@ -30,53 +35,28 @@ const getAzureProvider = (environment: pulumi.Output<Environment>) => {
     return azureProvider;
 }
 
-interface WebsiteArgs {
-    resourceGroupName: pulumi.Input<string>
-}
-
-class Website extends pulumi.ComponentResource
-{
-    staticEndpoint?: pulumi.Output<string>;
-
-    constructor(name: string, args: WebsiteArgs, opts?: pulumi.ComponentResourceOptions) {
-        super(`2mas:website:${name}`, name);
-
-        const options = { parent: this };
-
-        const storageAccount = new storage.StorageAccount(`${name}-storageaccount`, {
-            enableHttpsTrafficOnly: true,
-            accountName: name.replace("-", ""),
-            kind: storage.Kind.StorageV2,
-            resourceGroupName: args.resourceGroupName,
-            sku: {
-                name: storage.SkuName.Standard_LRS,
-            },
-        }, options);
-
-        // Enable static website support
-        const staticWebsite = new storage.StorageAccountStaticWebsite("staticWebsite", {
-            accountName: storageAccount.name,
-            resourceGroupName: args.resourceGroupName,
-            indexDocument: "index.html",
-            error404Document: "index.html",
-        }, options);
-
-        // Upload files
-        const indexFile = "index.html";
-        const files = new storage.Blob(indexFile, {
-            resourceGroupName: args.resourceGroupName,
-            accountName: storageAccount.name,
-            containerName: staticWebsite.containerName,
-            source: new pulumi.asset.FileAsset(`../../${indexFile}`),
-            contentType: "text/html",
-        }, options);
-
-        this.staticEndpoint = storageAccount.primaryEndpoints.web;
-    }
-}
+const getDNSimpleProvider = () => {
+    const config = new Config("dnsimple");
+    const provider = new DNSimpleProvider("dnsimple", {
+        account: config.requireSecret("account"),
+        token: config.requireSecret("token"),
+    });
+    return provider;
+};
 
 const environment = getEnvironment();
 const azureProvider = getAzureProvider(environment);
-const website = new Website("hello-ndc", { resourceGroupName: environment.name }, { provider: azureProvider });
+const dnsimpleProvider = getDNSimpleProvider();
+const website = new Website(fullName, 
+    { 
+        resourceGroupName: environment.name,
+        dnsArgs: {
+            recordType: RecordTypes.A,
+            hostOrIp: customHostname
+        }
+    },
+    { providers: { "azure-native": azureProvider, dnsimple: dnsimpleProvider} });
+export const hostname = website.staticEndpoint?.apply(endpoint => new URL(endpoint).hostname);
 
+export const siteUrl = `https://${customHostname}`;
 export const staticEndpoint = website.staticEndpoint;

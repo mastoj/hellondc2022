@@ -1,2 +1,6 @@
 config:
   azure-native:location: WestEurope
+  dnsimple:account:
+    secure: AAABAB2PTzS2qsyfTxoy/W2Iap0QgJfkVqIp8JUmsgY711bLgw==
+  dnsimple:token:
+    secure: AAABAPshI4SJq0KPXHp6ZNIIimyG+t9tZ9u+Nz7WN2fctsMu3PsWG9fHWcjEAxDCsI3C96J7yB2JCRz5KhX3Aw==
