@@ -24,7 +24,8 @@ export class Website extends ComponentResource {
         super(`2mas:website:Website`, name);
         const providers = (opts?.providers! as globalThis.Record<string, ProviderResource>);
         const azureOptions = { parent: this, provider: providers["azure-native"] };
-        const dnsimpleOptions = { parent: this, provider: providers["dnsimple"] };
+        const dnsimpleOptions = { parent: this };
+        // const dnsimpleOptions = { parent: this, provider: providers["dnsimple"] };
 
         const storageAccountName = name.replace(/-/g, "");
         const staticWebsiteHostName = `${storageAccountName}.z6.web.core.windows.net`;

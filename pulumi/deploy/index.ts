@@ -35,18 +35,8 @@ const getAzureProvider = (environment: Output<Environment>) => {
     return azureProvider;
 }
 
-const getDNSimpleProvider = () => {
-    const config = new Config("dnsimple");
-    const provider = new DNSimpleProvider("dnsimple", {
-        account: config.requireSecret("account"),
-        token: config.requireSecret("token"),
-    });
-    return provider;
-};
-
 const environment = getEnvironment();
 const azureProvider = getAzureProvider(environment);
-const dnsimpleProvider = getDNSimpleProvider();
 const website = new Website(fullName, 
     { 
         resourceGroupName: environment.name,
@@ -55,7 +45,7 @@ const website = new Website(fullName,
             hostOrIp: customHostname
         }
     },
-    { providers: { "azure-native": azureProvider, dnsimple: dnsimpleProvider} });
+    { providers: { "azure-native": azureProvider } });
 export const hostname = website.staticEndpoint?.apply(endpoint => new URL(endpoint).hostname);
 
 export const siteUrl = `https://${customHostname}`;
