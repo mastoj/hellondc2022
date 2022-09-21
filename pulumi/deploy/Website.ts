@@ -1,10 +1,8 @@
 import { Kind, SkuName, StorageAccount, StorageAccountStaticWebsite } from "@pulumi/azure-native/storage";
-import { Provider as DNSimpleProvider, Record, RecordType, RecordTypes } from "@pulumi/dnsimple";
+import { Record, RecordType, RecordTypes } from "@pulumi/dnsimple";
 import { ComponentResource, ComponentResourceOptions, Input, Output, ProviderResource } from "@pulumi/pulumi";
-import * as pulumi from "@pulumi/pulumi";
 import * as storage from "@pulumi/azure-native/storage";
 import { FileAsset } from "@pulumi/pulumi/asset";
-import { DnsEndpointType } from "@pulumi/azure-native/storage/v20210901";
 
 export interface DnsArgs {
     recordType: Input<RecordType>;
@@ -25,8 +23,6 @@ export class Website extends ComponentResource {
         const providers = (opts?.providers! as globalThis.Record<string, ProviderResource>);
         const azureOptions = { parent: this, provider: providers["azure-native"] };
         const dnsimpleOptions = { parent: this };
-        // const dnsimpleOptions = { parent: this, provider: providers["dnsimple"] };
-
         const storageAccountName = name.replace(/-/g, "");
         const staticWebsiteHostName = `${storageAccountName}.z6.web.core.windows.net`;
 

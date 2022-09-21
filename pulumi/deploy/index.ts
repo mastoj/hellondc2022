@@ -1,7 +1,7 @@
-import { Config, getStack, Output, StackReference } from "@pulumi/pulumi";
+import { getStack, Output, StackReference } from "@pulumi/pulumi";
 import { Provider } from "@pulumi/azure-native";
 import { Website } from "./Website";
-import { RecordTypes, Provider as DNSimpleProvider } from "@pulumi/dnsimple";
+import { RecordTypes } from "@pulumi/dnsimple";
 
 interface Environment {
     name: string;
@@ -18,7 +18,7 @@ const customHostname = `${fullName}.2mas.xyz`
 
 
 const getEnvironment = () => {
-    const environmentStack = new StackReference("tomasja/environments/dev");
+    const environmentStack = new StackReference("tomasja/hellondc2022.environments/dev");
     const environment = environmentStack
         .requireOutput("resourceGroups")
         .apply(json => json[name] as Environment);
