@@ -10,7 +10,7 @@ const azureProvider = new AzureProvider("azure-provider");
 const azureAdProvider = new AzureAdProvider("azure-ad-provider");
 
 
-const resourceGroupNames = ["hello-ndc", "team2"];
+const resourceGroupNames = ["hello-ndc"];
 export const resourceGroups = resourceGroupNames.map((name) => {
     const rg = new ResourceGroupWithSP(name, 
         { subscriptionId: subscriptionId, location: location },
