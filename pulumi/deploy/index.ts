@@ -1,52 +1,23 @@
-import { getStack, Output, StackReference } from "@pulumi/pulumi";
-import { Provider } from "@pulumi/azure-native";
-import { Website } from "./Website";
-import { RecordTypes } from "@pulumi/dnsimple";
+import * as pulumi from "@pulumi/pulumi";
+import * as resources from "@pulumi/azure-native/resources";
+import * as storage from "@pulumi/azure-native/storage";
 
-interface Environment {
-    name: string;
-    clientId: string;
-    clientSecret: string;
-    subscriptionId: string;
-    tenantId: string;
-}
+// Create an Azure Resource Group
+const resourceGroup = new resources.ResourceGroup("resourceGroup");
 
-const stack = getStack();
-const name = "hello-ndc";
-const fullName = `${name}-${stack}`;
-const customHostname = `${fullName}.2mas.xyz`
-
-
-const getEnvironment = () => {
-    const environmentStack = new StackReference("tomasja/hellondc2022.environments/dev");
-    const environment = environmentStack
-        .requireOutput("resourceGroups")
-        .apply(json => json[name] as Environment);
-    return environment;
-}
-
-const getAzureProvider = (environment: Output<Environment>) => {
-    const azureProvider = new Provider("azure-provider", {
-        subscriptionId: environment.subscriptionId,
-        tenantId: environment.tenantId,
-        clientId: environment.clientId,
-        clientSecret: environment.clientSecret
-    });
-    return azureProvider;
-}
-
-const environment = getEnvironment();
-const azureProvider = getAzureProvider(environment);
-const website = new Website(fullName, 
-    { 
-        resourceGroupName: environment.name,
-        dnsArgs: {
-            recordType: RecordTypes.A,
-            hostOrIp: customHostname
-        }
+// Create an Azure resource (Storage Account)
+const storageAccount = new storage.StorageAccount("sa", {
+    resourceGroupName: resourceGroup.name,
+    sku: {
+        name: storage.SkuName.Standard_LRS,
     },
-    { providers: { "azure-native": azureProvider } });
-export const hostname = website.staticEndpoint?.apply(endpoint => new URL(endpoint).hostname);
+    kind: storage.Kind.StorageV2,
+});
 
-export const siteUrl = `https://${customHostname}`;
-export const staticEndpoint = website.staticEndpoint;
+// Export the primary key of the Storage Account
+const storageAccountKeys = storage.listStorageAccountKeysOutput({
+    resourceGroupName: resourceGroup.name,
+    accountName: storageAccount.name
+});
+
+export const primaryStorageKey = storageAccountKeys.keys[0].value;

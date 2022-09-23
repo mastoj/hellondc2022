@@ -1,24 +1,23 @@
 import * as pulumi from "@pulumi/pulumi";
-import { Provider as AzureProvider } from "@pulumi/azure-native";
-import { Provider as AzureAdProvider } from "@pulumi/azuread";
-import { ResourceGroupWithSP } from "./ResourceGroupWithSP";
+import * as resources from "@pulumi/azure-native/resources";
+import * as storage from "@pulumi/azure-native/storage";
 
-const tenantId = process.env.ARM_TENANT_ID!;
-const subscriptionId = process.env.ARM_SUBSCRIPTION_ID!;
-const location = "WestEurope";
-const azureProvider = new AzureProvider("azure-provider");
-const azureAdProvider = new AzureAdProvider("azure-ad-provider");
+// Create an Azure Resource Group
+const resourceGroup = new resources.ResourceGroup("resourceGroup");
 
+// Create an Azure resource (Storage Account)
+const storageAccount = new storage.StorageAccount("sa", {
+    resourceGroupName: resourceGroup.name,
+    sku: {
+        name: storage.SkuName.Standard_LRS,
+    },
+    kind: storage.Kind.StorageV2,
+});
 
-const resourceGroupNames = ["hello-ndc"];
-export const resourceGroups = resourceGroupNames.map((name) => {
-    const rg = new ResourceGroupWithSP(name, 
-        { subscriptionId: subscriptionId, location: location },
-        { providers: { "azure-native": azureProvider, azuread: azureAdProvider } });
-    return {
-        name: name,
-        clientId: rg.clientId,
-        clientSecret: rg.clientSecret,
-        subscriptionId: subscriptionId,
-        tenantId: tenantId
-    }}).reduce((acc, cur) => ({...acc, [cur.name]: cur}), {});
+// Export the primary key of the Storage Account
+const storageAccountKeys = storage.listStorageAccountKeysOutput({
+    resourceGroupName: resourceGroup.name,
+    accountName: storageAccount.name
+});
+
+export const primaryStorageKey = storageAccountKeys.keys[0].value;
