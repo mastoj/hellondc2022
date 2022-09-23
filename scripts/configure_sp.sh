@@ -25,5 +25,6 @@ az ad app permission add --id $ARM_CLIENT_ID --api 00000003-0000-0000-c000-00000
 
 sleep 15
 az ad app permission admin-consent --id $ARM_CLIENT_ID
-#az ad app permission grant --scope Directory.ReadWrite.All --id $ARM_CLIENT_ID --api 00000003-0000-0000-c000-000000000000
+
+# User access administrator
 az role assignment create --assignee $ARM_CLIENT_ID --role 18d7d88d-d35e-4fb5-a5c3-7773c20a72d9 --scope subscriptions/6d43a0fc-56b4-448e-9148-5a10ddeb74fb
