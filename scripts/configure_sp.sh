@@ -6,7 +6,7 @@ az ad sp delete --id $EXISTING_SP
 az ad app delete --id $EXISTING_SP
 
 echo "==> Create SP"
-export NDC_SUBSCRIPTION_ID=6d43a0fc-56b4-448e-9148-5a10ddeb74fb
+export NDC_SUBSCRIPTION_ID=83a383e9-f8c5-4fe0-b11a-8b59d8c22f2e
 SP_RESULT=$(az ad sp create-for-rbac --name ndc2022god --role contributor --scopes /subscriptions/$NDC_SUBSCRIPTION_ID)
 
 echo "==> Export azure config"
